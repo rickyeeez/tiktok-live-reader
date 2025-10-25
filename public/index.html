@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TikTok Live Comments</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <style>
+      /* 🎨 Background dan layout */
+      body {
+        font-family: "Poppins", sans-serif;
+        background: radial-gradient(circle at top left, #1a1a1a, #000);
+        color: #fff;
+        height: 100vh;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+      }
+
+      h1 {
+        margin: 10px 0;
+        font-size: 20px;
+        font-weight: 600;
+        color: #00f5ff;
+        text-shadow: 0 0 8px #00f5ff;
+      }
+
+      /* 💬 Container komentar */
+      #comments {
+        width: 90%;
+        max-width: 480px;
+        display: flex;
+        flex-direction: column-reverse; /* muncul dari bawah ke atas */
+        gap: 10px;
+        padding: 20px;
+        overflow-y: hidden;
+        box-sizing: border-box;
+        flex: 1;
+      }
+
+      /* 🗨️ Style tiap komentar */
+      .comment {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 12px 15px;
+        border-radius: 15px;
+        box-shadow: 0 0 15px rgba(0, 245, 255, 0.1);
+        border: 1px solid rgba(0, 245, 255, 0.2);
+        animation: fadeInUp 0.4s ease;
+        transform-origin: bottom;
+      }
+
+      .comment img {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        border: 2px solid #00f5ff;
+      }
+
+      .username {
+        font-weight: 600;
+        color: #00f5ff;
+        margin-bottom: 4px;
+      }
+
+      .text {
+        color: #eee;
+        line-height: 1.4em;
+        word-break: break-word;
+      }
+
+      .text-wrapper {
+        flex: 1;
+      }
+
+      /* ✨ Animasi */
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* 📝 Form styles */
+      .control-panel {
+        width: 90%;
+        max-width: 480px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 15px;
+        box-shadow: 0 0 20px rgba(0, 245, 255, 0.1);
+        border: 1px solid rgba(0, 245, 255, 0.2);
+        margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      #uniqueIdInput {
+        flex: 1;
+        padding: 12px 15px;
+        border: 2px solid rgba(0, 245, 255, 0.3);
+        border-radius: 10px;
+        font-size: 14px;
+        background: rgba(255, 255, 255, 0.05);
+        color: #fff;
+        transition: border-color 0.3s;
+      }
+
+      #uniqueIdInput:focus {
+        outline: none;
+        border-color: #00f5ff;
+        box-shadow: 0 0 10px rgba(0, 245, 255, 0.3);
+      }
+
+      #uniqueIdInput::placeholder {
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      #connectBtn {
+        padding: 12px 20px;
+        background: #00f5ff;
+        color: #000;
+        border: none;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+
+      #connectBtn:hover {
+        background: #00d4e6;
+        box-shadow: 0 0 15px rgba(0, 245, 255, 0.4);
+      }
+
+      #connectBtn:disabled {
+        background: rgba(255, 255, 255, 0.2);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      /* 📊 Status display */
+      .status {
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+      }
+
+      .status.success {
+        background: rgba(0, 255, 100, 0.15);
+        color: #00ff64;
+        border: 1px solid rgba(0, 255, 100, 0.3);
+        box-shadow: 0 0 10px rgba(0, 255, 100, 0.1);
+      }
+
+      .status.error {
+        background: rgba(255, 0, 100, 0.15);
+        color: #ff6b6b;
+        border: 1px solid rgba(255, 0, 100, 0.3);
+        box-shadow: 0 0 10px rgba(255, 0, 100, 0.1);
+      }
+
+      .status.info {
+        background: rgba(0, 245, 255, 0.15);
+        color: #00f5ff;
+        border: 1px solid rgba(0, 245, 255, 0.3);
+        box-shadow: 0 0 10px rgba(0, 245, 255, 0.1);
+      }
+
+      .status.connecting {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        box-shadow: 0 0 10px rgba(255, 193, 7, 0.1);
+      }
+
+      /* Scrollbar custom (kalau kamu ubah jadi scrollable) */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #00f5ff;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎬 TikTok Live Comments</h1>
+
+    <div class="control-panel">
+      <div class="input-group">
+        <input
+          type="text"
+          id="uniqueIdInput"
+          placeholder="Enter TikTok username (e.g., boporenggotarunojoyo)"
+          autocomplete="off"
+        />
+        <button id="connectBtn">Connect</button>
+      </div>
+      <div id="status" class="status info">
+        Enter a TikTok username to start
+      </div>
+    </div>
+
+    <div id="comments"></div>
+
+    <script>
+      const socket = io(window.location.origin);
+      const commentsDiv = document.getElementById("comments");
+      const statusDiv = document.getElementById("status");
+      const uniqueIdInput = document.getElementById("uniqueIdInput");
+      const connectBtn = document.getElementById("connectBtn");
+
+      // Handle status updates from server
+      socket.on("status", (statusData) => {
+        const { type, message } = statusData;
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+
+        // Enable/disable connect button based on status
+        if (type === "connecting") {
+          connectBtn.disabled = true;
+          connectBtn.textContent = "Connecting...";
+        } else {
+          connectBtn.disabled = false;
+          connectBtn.textContent = "Connect";
+        }
+      });
+
+      // Handle chat messages from server
+      socket.on("chat_messages", (messages) => {
+        if (!Array.isArray(messages)) return;
+
+        messages.forEach((msg) => {
+          const data = msg.data || {};
+          const user = data.user || {};
+          const username = user.nickname || "Anonymous";
+          const text = data.comment || "";
+          const photo = user.profilePicture?.url?.[0] || "";
+
+          if (text.trim() !== "") {
+            const div = document.createElement("div");
+            div.classList.add("comment");
+            div.innerHTML = `
+            ${photo ? `<img src="${photo}" alt="${username}">` : ""}
+            <div class="text-wrapper">
+              <div class="username">${username}</div>
+              <div class="text">${text}</div>
+            </div>
+          `;
+            commentsDiv.prepend(div);
+
+            // 🔥 Batasi hanya 15 chat agar tampil rapi
+            if (commentsDiv.children.length > 15) {
+              commentsDiv.removeChild(commentsDiv.lastChild);
+            }
+          }
+        });
+      });
+
+      // Handle connect button click
+      connectBtn.addEventListener("click", () => {
+        const uniqueId = uniqueIdInput.value.trim();
+        if (uniqueId === "") {
+          statusDiv.textContent = "Please enter a TikTok username";
+          statusDiv.className = "status error";
+          return;
+        }
+
+        // Clear existing comments
+        commentsDiv.innerHTML = "";
+
+        // Send connect request to server
+        socket.emit("connect_to_user", { uniqueId });
+      });
+
+      // Handle Enter key in input field
+      uniqueIdInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          connectBtn.click();
+        }
+      });
+
+      // Auto-focus on input field
+      uniqueIdInput.focus();
+    </script>
+  </body>
+</html>
