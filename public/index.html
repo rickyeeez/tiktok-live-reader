@@ -226,7 +226,7 @@
     <div id="comments"></div>
 
     <script>
-      const socket = io(window.location.origin);
+      const socket = io("https://tiktok-live-reader.vercel.app");
       const commentsDiv = document.getElementById("comments");
       const statusDiv = document.getElementById("status");
       const uniqueIdInput = document.getElementById("uniqueIdInput");
